@@ -1,4 +1,6 @@
-# sol-wallets
+# Installation
+Run `rye sync`
 
-Describe your project here.
-* License: MIT
+# Running
+Run `rye run dev`
+
