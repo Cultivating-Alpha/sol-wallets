@@ -11,7 +11,7 @@ from spl.token.instructions import (
 )
 import json
 
-from .Wallets import wallets
+from sol_wallets.Wallets import wallets
 
 
 # Initialize the Solana client
