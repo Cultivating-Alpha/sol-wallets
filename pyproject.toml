@@ -20,6 +20,7 @@ license = { text = "MIT" }
 
 [tool.rye.scripts]
 dev = {cmd = 'nodemon -e py --exec rye run sol-wallets'}
+ddev = {cmd = 'rye run sol-wallets'}
 
 [build-system]
 requires = ["hatchling"]
