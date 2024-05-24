@@ -1,0 +1,36 @@
+[project]
+name = "sol-wallets"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Full Name", email = "email@address.invalid" }
+]
+dependencies = [
+    "solana>=0.34.0",
+    "solders>=0.21.0",
+    "simple-term-menu>=1.6.4",
+    "orjson>=3.10.3",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+license = { text = "MIT" }
+
+[project.scripts]
+"sol-wallets" = "sol_wallets:main"
+
+[tool.rye.scripts]
+dev = {cmd = 'nodemon -e py --exec rye run sol-wallets'}
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sol_wallets"]
