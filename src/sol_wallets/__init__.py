@@ -22,6 +22,7 @@ main_wallet = wallets.main_wallet
 
 
 def main():
+    print(main_wallet.pubkey())
     balance = client.get_balance(main_wallet.pubkey()).value
     print(balance)
 
