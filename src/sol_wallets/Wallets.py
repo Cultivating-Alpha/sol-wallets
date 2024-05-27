@@ -1,33 +1,41 @@
 import os
 from solders.keypair import Keypair
 
+from sol_wallets import Wallet
+
 
 class Wallets:
-    wallet_file = "wallets/main_wallet.bin"
-    main_wallet: Keypair
-    sub_wallets: list[Keypair] = []
+    main_wallet: Wallet
+    sub_wallets: list[Wallet] = []
 
-    def __init__(self):
+    def __init__(self, network):
+        self.wallet_file = f"wallets/{network}-main_wallet.bin"
+        self.network = network
         self.load_wallets()
         pass
 
     def load_wallets(self):
+        dir_path = "wallets"
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+
         if os.path.exists(self.wallet_file):
             self.main_wallet = self.read_wallet(self.wallet_file)
             self.sub_wallets = []
             for idx in range(25):
                 self.sub_wallets.append(
-                    self.read_wallet(f"wallets/sub_wallet-{idx}.bin")
+                    self.read_wallet(f"wallets/{self.network}-sub_wallet-{idx}.bin")
                 )
 
         else:
-            print("Wallet file not found.")
+            print("Wallet file not found. Creating new wallets!")
             self.create_wallets()
+            self.load_wallets()
 
     def read_wallet(self, file_name):
         with open(file_name, "rb") as f:
             data = f.read()
-        return Keypair.from_bytes(bytes(data))
+        return Wallet(network=self.network, _bytes=data)
 
     def write_binary(self, file_name, wallet):
         with open(file_name, "wb") as binary_file:
@@ -35,12 +43,9 @@ class Wallets:
 
     def create_wallets(self):
         main_wallet = Keypair()
-        self.write_binary("wallets/main_wallet.bin", main_wallet)
+        self.write_binary(f"wallets/{self.network}-main_wallet.bin", main_wallet)
 
         sub_wallets = [Keypair() for _ in range(25)]
 
         for idx, sw in enumerate(sub_wallets):
-            self.write_binary(f"wallets/sub_wallet-{idx}.bin", main_wallet)
-
-
-wallets = Wallets()
+            self.write_binary(f"wallets/{self.network}-sub_wallet-{idx}.bin", sw)

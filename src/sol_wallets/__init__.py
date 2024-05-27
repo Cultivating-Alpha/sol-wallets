@@ -1,187 +1,163 @@
-from solana.rpc.api import Client
-from solana.transaction import Transaction
-from solders.system_program import transfer
-from solana.rpc.types import TxOpts
-from spl.token.constants import TOKEN_PROGRAM_ID
+import os
 from simple_term_menu import TerminalMenu
-from spl.token.instructions import (
-    transfer_checked,
-    get_associated_token_address,
-    create_associated_token_account,
-)
-import json
-
-from sol_wallets.Wallets import wallets
-
-
-# Initialize the Solana client
-client = Client("https://api.mainnet-beta.solana.com")
+from sol_wallets.Actions import Actions
+from sol_wallets.Wallet import Wallet
+from sol_wallets.Wallets import Wallets
+from sol_wallets.Flow import Flow
+from sol_wallets.sol_price import get_solana_price
+from sol_wallets.Helpers import round_value
+from tqdm import tqdm
+import math
+from tabulate import tabulate
 
 
-main_wallet = wallets.main_wallet
+sample_wallets = {
+    "main": "BuouBWx5AVadDXzKFwBxaAxUnT3K5H6rRQmtAeCYGyLM",
+    "devnet": "51iAWLX4niXKE2LFUCKDH1CJSrEqD1z5owcPsZpCUfGq",
+}
+
+
+def clear():
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+class Runner:
+    min_usd_balance = 10
+
+    def __init__(self, network: str, wallets: Wallets, main_user_wallet: Wallet):
+        self.network = network
+        self.main_user_wallet = main_user_wallet
+        self.action = Actions(network)
+        self.wallets = wallets
+        pass
+
+    def menu(self):
+        options = [
+            "[i] Inspect Bot's main Wallet",
+            "[s] Inspect Bot's sub Wallets",
+            "[d] Distribute Sol to sub wallets",
+            "[a] Transfer all SOL back to main wallet",
+            "[r] Return money to main user",
+            "[f] Fund main bot wallet from user wallet",
+            # "[s] Distribute SPL tokens",
+            # "[c] Consolidate SPL tokens",
+        ]
+        terminal_menu = TerminalMenu(options)
+        menu_entry_index = terminal_menu.show()
+        if menu_entry_index == 0:
+            self.inspect_main_wallet()
+        elif menu_entry_index == 1:
+            self.inspect_sub_wallets()
+        elif menu_entry_index == 2:
+            self.distribute()
+        elif menu_entry_index == 3:
+            self.return_coins()
+        elif menu_entry_index == 4:
+            self.return_amount_to_user()
+        elif menu_entry_index == 5:
+            self.fund_main_wallet()
+        print()
+
+        user_input = input("Please Enter to continue...")
+        print(user_input)
+
+        clear()
+        self.menu()
+
+    def inspect_sub_wallets(self):
+        print("Inspecting the sub wallets...\n")
+        table = []
+        for i in tqdm(range(len(self.wallets.sub_wallets))):
+            wallet = self.wallets.sub_wallets[i]
+            table.append(
+                [str(wallet.pubkey()), wallet.get_balance(), wallet.private_key()]
+            )
+
+        headers = ["Wallet", "Balance (SOL)", "Private Key"]
+        print(tabulate(table, headers=headers, tablefmt="grid"))
+
+    def inspect_main_wallet(self):
+        print("Inspecting the main bot's balance...\n")
+        balance = self.wallets.main_wallet.get_balance()
+
+        table = [
+            [wallets.main_wallet.pubkey(), balance, wallets.main_wallet.private_key()],
+        ]
+
+        headers = ["Wallet", "Balance (SOL)", "Private Key"]
+        print(tabulate(table, headers=headers, tablefmt="grid"))
+
+    def distribute(self):
+        main_wallet = self.wallets.main_wallet
+        balance = self.wallets.main_wallet.get_balance()
+        solana_price_usd = get_solana_price()
+        balance_in_usd = balance * solana_price_usd
+        print(f"The main bot has {balance} SOL ({balance_in_usd:.2f}$)")
+        if balance_in_usd < self.min_usd_balance:
+            print("The balance is less than the min required. Please top up first!")
+            return
+
+        sub_wallets = self.wallets.sub_wallets
+        count = len(sub_wallets)
+        amount_per_wallet = round_value(balance / count, 0.001)
+        print(f"We have {count} wallets. Each will receive {amount_per_wallet} SOL")
+        print("=============================================")
+        print()
+
+        for i in tqdm(range(len(self.wallets.sub_wallets))):
+            sub = self.wallets.sub_wallets[i]
+
+            self.action.move_sol(
+                main_wallet.keypair, sub.keypair, amount_per_wallet * 1_000
+            )
+            print()
+
+    def return_coins(self):
+        main_wallet = self.wallets.main_wallet
+        for i in tqdm(range(len(self.wallets.sub_wallets))):
+            sub = self.wallets.sub_wallets[i]
+            balance = sub.get_balance()
+
+            money_to_return = math.floor(balance * 1_000)
+            if money_to_return != 0:
+                print(f"wallet {sub.pubkey()} has {balance} SOL")
+                balance_to_return = balance - 0.001
+                self.action.move_sol(
+                    sub.keypair, main_wallet.keypair, balance_to_return * 1_000
+                )
+                print()
+
+    def return_amount_to_user(self):
+        flow = Flow(self.network, self.main_user_wallet, wallets.main_wallet)
+        flow.return_amount_to_user()
+
+    def fund_main_wallet(self):
+        flow = Flow(self.network, self.main_user_wallet, wallets.main_wallet)
+        flow.refill_target(0.1)
+
+
+secret = "27FBSJH6NZipnEM2M1PNDV5P9wAvnr9kca2Ds4ipMXo7nLTK5W6DSJBPZccQoq9t17hM74evEBTyQAhogSFj4Gso"
+devnet_user_wallet = Wallet(network="devnet", secret=secret)
+
+
+wallets = Wallets("devnet")
+
+# for sub in wallets.sub_wallets:
+#     print(sub.pubkey())
+#     # balance = sub.get_balance()
+#     # print(balance)
+
+
+# Fetching and printing the Solana price in USD
 
 
 def main():
-    print(main_wallet.pubkey())
-    balance = client.get_balance(main_wallet.pubkey()).value
-    print(balance)
+    clear()
+    wallets = Wallets("devnet")
+    runner = Runner("devnet", wallets, devnet_user_wallet)
 
-
-# balance = client.get_balance(main_wallet.public_key)["result"]["value"]
-# print(balance)
-
-
-# # Function to equally distribute SOL from the main wallet to sub wallets
-# def distribute_sol():
-#     # Get the balance of the main wallet
-#     balance = client.get_balance(main_wallet.public_key)["result"]["value"]
-#     if balance <= 0:
-#         print("Main wallet has no SOL to distribute.")
-#         return
-
-#     # Calculate the amount to transfer to each sub wallet
-#     amount_per_wallet = balance // 25
-
-#     # Create and send the transactions
-#     tx = Transaction()
-#     for sub_wallet in sub_wallets:
-#         tx.add(
-#             transfer(
-#                 from_pubkey=main_wallet.public_key,
-#                 to_pubkey=sub_wallet.public_key,
-#                 lamports=amount_per_wallet,
-#             )
-#         )
-
-#     response = client.send_transaction(tx, main_wallet)
-#     print(response)
-
-
-# # # Function to transfer all SOL from sub wallets back to the main wallet
-# # def consolidate_sol():
-# #     tx = Transaction()
-# #     for sub_wallet in sub_wallets:
-# #         balance = client.get_balance(sub_wallet.public_key)["result"]["value"]
-# #         if balance > 0:
-# #             tx.add(
-# #                 transfer(
-# #                     from_pubkey=sub_wallet.public_key,
-# #                     to_pubkey=main_wallet.public_key,
-# #                     lamports=balance,
-# #                 )
-# #             )
-
-# #     response = client.send_transaction(tx, *sub_wallets)
-# #     print(response)
-
-
-# # # Function to distribute SPL tokens
-# # def distribute_spl_tokens(token_mint):
-# #     # Get the associated token address for the main wallet
-# #     main_token_account = get_associated_token_address(
-# #         main_wallet.public_key, token_mint
-# #     )
-# #     token_balance = client.get_token_account_balance(main_token_account)["result"][
-# #         "value"
-# #     ]["amount"]
-
-# #     if int(token_balance) <= 0:
-# #         print("Main wallet has no SPL tokens to distribute.")
-# #         return
-
-# #     amount_per_wallet = int(token_balance) // 25
-
-# #     tx = Transaction()
-# #     for sub_wallet in sub_wallets:
-# #         sub_wallet_token_account = get_associated_token_address(
-# #             sub_wallet.public_key, token_mint
-# #         )
-# #         tx.add(
-# #             create_associated_token_account(
-# #                 main_wallet.public_key, sub_wallet.public_key, token_mint
-# #             )
-# #         )
-# #         tx.add(
-# #             transfer_checked(
-# #                 source=main_token_account,
-# #                 dest=sub_wallet_token_account,
-# #                 owner=main_wallet.public_key,
-# #                 amount=amount_per_wallet,
-# #                 decimals=0,
-# #                 token_program_id=TOKEN_PROGRAM_ID,
-# #                 mint=token_mint,
-# #             )
-# #         )
-
-# #     response = client.send_transaction(tx, main_wallet)
-# #     print(response)
-
-
-# # # Function to consolidate SPL tokens back to the main wallet
-# # def consolidate_spl_tokens(token_mint):
-# #     tx = Transaction()
-# #     main_token_account = get_associated_token_address(
-# #         main_wallet.public_key, token_mint
-# #     )
-
-# #     for sub_wallet in sub_wallets:
-# #         sub_wallet_token_account = get_associated_token_address(
-# #             sub_wallet.public_key, token_mint
-# #         )
-# #         token_balance = client.get_token_account_balance(sub_wallet_token_account)[
-# #             "result"
-# #         ]["value"]["amount"]
-# #         if int(token_balance) > 0:
-# #             tx.add(
-# #                 transfer_checked(
-# #                     source=sub_wallet_token_account,
-# #                     dest=main_token_account,
-# #                     owner=sub_wallet.public_key,
-# #                     amount=int(token_balance),
-# #                     decimals=0,
-# #                     token_program_id=TOKEN_PROGRAM_ID,
-# #                     mint=token_mint,
-# #                 )
-# #             )
-
-# #     response = client.send_transaction(tx, *sub_wallets)
-# #     print(response)
-
-
-# # # Function to check for user input and perform actions
-# def run():
-#     options = [
-#         "[d] Distribute Sol",
-#         "[a] Transfer all SOL back to main wallet",
-#         "[s] Distribute SPL tokens",
-#         "[c] Consolidate SPL tokens",
-#     ]
-#     terminal_menu = TerminalMenu(options)
-#     menu_entry_index = terminal_menu.show()
-#     print(menu_entry_index)
-#     print(options[menu_entry_index])
-#     print(f"You have selected {options[menu_entry_index]}!")
-#     while True:
-
-#         user_input = (
-#             input(
-#                 "Press D to distribute SOL, A to transfer all SOL back to the main wallet, S to distribute SPL tokens, C to consolidate SPL tokens: "
-#             )
-#             .strip()
-#             .upper()
-#         )
-#         if user_input == "D":
-#             distribute_sol()
-#         elif user_input == "A":
-#             consolidate_sol()
-#         elif user_input == "S":
-#             token_mint = input("Enter the token mint address: ").strip()
-#             distribute_spl_tokens(token_mint)
-#         elif user_input == "C":
-#             token_mint = input("Enter the token mint address: ").strip()
-#             consolidate_spl_tokens(token_mint)
-
-
-# def main() -> int:
-#     run()
-#     return 0
+    # runner.distribute()
+    # runner.return_coins()
+    runner.menu()
+    # flow.return_amount_to_user()
+    return

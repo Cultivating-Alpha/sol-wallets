@@ -1,6 +1,6 @@
 [project]
 name = "sol-wallets"
-version = "0.1.0"
+version = "0.2.0"
 description = "Add your description here"
 authors = [
     { name = "Full Name", email = "email@address.invalid" }
@@ -10,6 +10,12 @@ dependencies = [
     "solders>=0.21.0",
     "simple-term-menu>=1.6.4",
     "orjson>=3.10.3",
+    "mnemonic>=0.21",
+    "bip-utils>=2.9.3",
+    "base58>=2.1.1",
+    "tqdm>=4.66.4",
+    "requests>=2.32.2",
+    "tabulate>=0.9.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
