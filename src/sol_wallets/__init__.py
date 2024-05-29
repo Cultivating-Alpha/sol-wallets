@@ -24,6 +24,7 @@ sample_wallets = {
 
 config = dotenv_values(".env")  # config = {"USER": "foo", "EMAIL": "foo@example.org"}
 API_KEY = config["HELIUS_KEY"]
+OWNER = config["MAIN_WALLET"]
 
 
 def clear():
@@ -77,10 +78,9 @@ class Runner:
         self.menu()
 
     def view_account_balances(self):
-        print("Fetching your account balances...")
+        print("Fetching token balances for owner: {OWNER}")
         helius = Helius(API_KEY)
-        owner = "3AKTArakTTSERVCFSeonxTa21YrEjwufhKQUYy1sgcKj"
-        helius.get_accounts(owner)
+        helius.get_accounts(OWNER)
 
         headers = ["Coin", "Balance", "Name"]
         table = []
