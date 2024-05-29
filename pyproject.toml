@@ -16,6 +16,7 @@ dependencies = [
     "tqdm>=4.66.4",
     "requests>=2.32.2",
     "tabulate>=0.9.0",
+    "python-dotenv>=1.0.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -25,6 +26,10 @@ license = { text = "MIT" }
 "sol-wallets" = "sol_wallets:main"
 
 [tool.rye.scripts]
+install = { chain = ["install_env", "install_out" ] }
+install_env = {cmd = 'cp .env.sample .env'}
+install_out = {cmd = 'echo Please make sure to add Helius key to .env'}
+
 dev = {cmd = 'nodemon -e py --exec rye run sol-wallets'}
 ddev = {cmd = 'rye run sol-wallets'}
 
