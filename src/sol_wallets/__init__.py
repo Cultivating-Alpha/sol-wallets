@@ -53,7 +53,9 @@ class Runner:
             # "[s] Distribute SPL tokens",
             # "[c] Consolidate SPL tokens",
         ]
-        terminal_menu = TerminalMenu(options)
+        terminal_menu = TerminalMenu(
+            options, title="Main Menu", shortcut_key_highlight_style=("fg_green",)
+        )
         menu_entry_index = terminal_menu.show()
         if menu_entry_index == 0:
             self.inspect_main_wallet()
