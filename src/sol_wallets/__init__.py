@@ -10,13 +10,20 @@ from tqdm import tqdm
 import math
 from tabulate import tabulate
 
-from sol_wallets.Helius import helius
+from sol_wallets.Helius import Helius
+from dotenv import load_dotenv
+from dotenv import dotenv_values
+
+load_dotenv()
 
 
 sample_wallets = {
     "main": "BuouBWx5AVadDXzKFwBxaAxUnT3K5H6rRQmtAeCYGyLM",
     "devnet": "51iAWLX4niXKE2LFUCKDH1CJSrEqD1z5owcPsZpCUfGq",
 }
+
+config = dotenv_values(".env")  # config = {"USER": "foo", "EMAIL": "foo@example.org"}
+API_KEY = config["HELIUS_KEY"]
 
 
 def clear():
@@ -41,6 +48,7 @@ class Runner:
             "[a] Transfer all SOL back to main wallet",
             "[r] Return money to main user",
             "[f] Fund main bot wallet from user wallet",
+            "[v] View my account balances",
             # "[s] Distribute SPL tokens",
             # "[c] Consolidate SPL tokens",
         ]
@@ -58,6 +66,8 @@ class Runner:
             self.return_amount_to_user()
         elif menu_entry_index == 5:
             self.fund_main_wallet()
+        elif menu_entry_index == 6:
+            self.view_account_balances()
         print()
 
         user_input = input("Please Enter to continue...")
@@ -65,6 +75,19 @@ class Runner:
 
         clear()
         self.menu()
+
+    def view_account_balances(self):
+        print("Fetching your account balances...")
+        helius = Helius(API_KEY)
+        owner = "3AKTArakTTSERVCFSeonxTa21YrEjwufhKQUYy1sgcKj"
+        helius.get_accounts(owner)
+
+        headers = ["Coin", "Balance", "Name"]
+        table = []
+        for account in helius.accounts:
+            # print(f"You have {account.amount} ({account.symbol}) --> {account.name}")
+            table.append([account.symbol, account.amount, account.name])
+        print(tabulate(table, headers=headers, tablefmt="grid"))
 
     def inspect_sub_wallets(self):
         print("Inspecting the sub wallets...\n")
@@ -144,18 +167,8 @@ devnet_user_wallet = Wallet(network="devnet", secret=secret)
 
 wallets = Wallets("devnet")
 
-# for sub in wallets.sub_wallets:
-#     print(sub.pubkey())
-#     # balance = sub.get_balance()
-#     # print(balance)
-
-
-# Fetching and printing the Solana price in USD
-
 
 def main():
-    helius()
-    return
     clear()
     wallets = Wallets("devnet")
     runner = Runner("devnet", wallets, devnet_user_wallet)

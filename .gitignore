@@ -10,3 +10,4 @@ wheels/
 .venv
 src/sol_wallets/.jukit
 node_modules
+.env
