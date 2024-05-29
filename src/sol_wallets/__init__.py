@@ -10,6 +10,8 @@ from tqdm import tqdm
 import math
 from tabulate import tabulate
 
+from sol_wallets.Helius import helius
+
 
 sample_wallets = {
     "main": "BuouBWx5AVadDXzKFwBxaAxUnT3K5H6rRQmtAeCYGyLM",
@@ -152,6 +154,8 @@ wallets = Wallets("devnet")
 
 
 def main():
+    helius()
+    return
     clear()
     wallets = Wallets("devnet")
     runner = Runner("devnet", wallets, devnet_user_wallet)
