@@ -4,17 +4,20 @@ from sol_wallets.Actions import Actions
 from sol_wallets.Wallet import Wallet
 from sol_wallets.Wallets import Wallets
 from sol_wallets.Flow import Flow
+from sol_wallets.pprint import pprint
 from sol_wallets.sol_price import get_solana_price
 from sol_wallets.Helpers import round_value
 from tqdm import tqdm
 import math
 from tabulate import tabulate
+from spl.token.client import Token
 
-from sol_wallets.Helius import Helius
-from dotenv import load_dotenv
-from dotenv import dotenv_values
-
-load_dotenv()
+from sol_wallets.Helius import Helius, get_helius
+from spl.token.constants import TOKEN_PROGRAM_ID
+from spl.token.instructions import transfer_checked, TransferCheckedParams
+from sol_wallets.Menu import clear, Menu
+from solders.pubkey import Pubkey
+from solders.keypair import Keypair
 
 
 sample_wallets = {
@@ -22,158 +25,138 @@ sample_wallets = {
     "devnet": "51iAWLX4niXKE2LFUCKDH1CJSrEqD1z5owcPsZpCUfGq",
 }
 
-config = dotenv_values(".env")  # config = {"USER": "foo", "EMAIL": "foo@example.org"}
-API_KEY = config["HELIUS_KEY"]
-OWNER = config["MAIN_WALLET"]
-
-
-def clear():
-    os.system("cls" if os.name == "nt" else "clear")
-
-
-class Runner:
-    min_usd_balance = 10
-
-    def __init__(self, network: str, wallets: Wallets, main_user_wallet: Wallet):
-        self.network = network
-        self.main_user_wallet = main_user_wallet
-        self.action = Actions(network)
-        self.wallets = wallets
-        pass
-
-    def menu(self):
-        options = [
-            "[i] Inspect Bot's main Wallet",
-            "[s] Inspect Bot's sub Wallets",
-            "[d] Distribute Sol to sub wallets",
-            "[a] Transfer all SOL back to main wallet",
-            "[r] Return money to main user",
-            "[f] Fund main bot wallet from user wallet",
-            "[v] View my account balances",
-            # "[s] Distribute SPL tokens",
-            # "[c] Consolidate SPL tokens",
-        ]
-        terminal_menu = TerminalMenu(
-            options, title="Main Menu", shortcut_key_highlight_style=("fg_green",)
-        )
-        menu_entry_index = terminal_menu.show()
-        if menu_entry_index == 0:
-            self.inspect_main_wallet()
-        elif menu_entry_index == 1:
-            self.inspect_sub_wallets()
-        elif menu_entry_index == 2:
-            self.distribute()
-        elif menu_entry_index == 3:
-            self.return_coins()
-        elif menu_entry_index == 4:
-            self.return_amount_to_user()
-        elif menu_entry_index == 5:
-            self.fund_main_wallet()
-        elif menu_entry_index == 6:
-            self.view_account_balances()
-        print()
-
-        user_input = input("Please Enter to continue...")
-        print(user_input)
-
-        clear()
-        self.menu()
-
-    def view_account_balances(self):
-        print("Fetching token balances for owner: {OWNER}")
-        helius = Helius(API_KEY)
-        helius.get_accounts(OWNER)
-
-        headers = ["Coin", "Balance", "Name"]
-        table = []
-        for account in helius.accounts:
-            # print(f"You have {account.amount} ({account.symbol}) --> {account.name}")
-            table.append([account.symbol, account.amount, account.name])
-        print(tabulate(table, headers=headers, tablefmt="grid"))
-
-    def inspect_sub_wallets(self):
-        print("Inspecting the sub wallets...\n")
-        table = []
-        for i in tqdm(range(len(self.wallets.sub_wallets))):
-            wallet = self.wallets.sub_wallets[i]
-            table.append(
-                [str(wallet.pubkey()), wallet.get_balance(), wallet.private_key()]
-            )
-
-        headers = ["Wallet", "Balance (SOL)", "Private Key"]
-        print(tabulate(table, headers=headers, tablefmt="grid"))
-
-    def inspect_main_wallet(self):
-        print("Inspecting the main bot's balance...\n")
-        balance = self.wallets.main_wallet.get_balance()
-
-        table = [
-            [wallets.main_wallet.pubkey(), balance, wallets.main_wallet.private_key()],
-        ]
-
-        headers = ["Wallet", "Balance (SOL)", "Private Key"]
-        print(tabulate(table, headers=headers, tablefmt="grid"))
-
-    def distribute(self):
-        main_wallet = self.wallets.main_wallet
-        balance = self.wallets.main_wallet.get_balance()
-        solana_price_usd = get_solana_price()
-        balance_in_usd = balance * solana_price_usd
-        print(f"The main bot has {balance} SOL ({balance_in_usd:.2f}$)")
-        if balance_in_usd < self.min_usd_balance:
-            print("The balance is less than the min required. Please top up first!")
-            return
-
-        sub_wallets = self.wallets.sub_wallets
-        count = len(sub_wallets)
-        amount_per_wallet = round_value(balance / count, 0.001)
-        print(f"We have {count} wallets. Each will receive {amount_per_wallet} SOL")
-        print("=============================================")
-        print()
-
-        for i in tqdm(range(len(self.wallets.sub_wallets))):
-            sub = self.wallets.sub_wallets[i]
-
-            self.action.move_sol(
-                main_wallet.keypair, sub.keypair, amount_per_wallet * 1_000
-            )
-            print()
-
-    def return_coins(self):
-        main_wallet = self.wallets.main_wallet
-        for i in tqdm(range(len(self.wallets.sub_wallets))):
-            sub = self.wallets.sub_wallets[i]
-            balance = sub.get_balance()
-
-            money_to_return = math.floor(balance * 1_000)
-            if money_to_return != 0:
-                print(f"wallet {sub.pubkey()} has {balance} SOL")
-                balance_to_return = balance - 0.001
-                self.action.move_sol(
-                    sub.keypair, main_wallet.keypair, balance_to_return * 1_000
-                )
-                print()
-
-    def return_amount_to_user(self):
-        flow = Flow(self.network, self.main_user_wallet, wallets.main_wallet)
-        flow.return_amount_to_user()
-
-    def fund_main_wallet(self):
-        flow = Flow(self.network, self.main_user_wallet, wallets.main_wallet)
-        flow.refill_target(0.1)
-
 
 secret = "27FBSJH6NZipnEM2M1PNDV5P9wAvnr9kca2Ds4ipMXo7nLTK5W6DSJBPZccQoq9t17hM74evEBTyQAhogSFj4Gso"
 devnet_user_wallet = Wallet(network="devnet", secret=secret)
 
 
 wallets = Wallets("devnet")
+main_wallet = Keypair.from_base58_string(secret)
+
+
+def find_missing_accounts(source_accounts, _target_accounts):
+    target_accounts = [account.mint for account in _target_accounts]
+    missing = []
+    for account in source_accounts:
+        if account.mint not in target_accounts:
+            missing.append(account)
+    return missing
+
+
+def move():
+    print(wallets.main_wallet.pubkey())
+    bal = wallets.main_wallet.get_balance()
+    print(bal)
+    bal = wallets.main_wallet.get_token_balances()
+    print(bal)
+    return
+    helius = get_helius("devnet")
+    all_active_accounts = helius.get_accounts(main_wallet)
+
+    sub = wallets.sub_wallets[4]
+    all_sub_accounts = helius.get_accounts(sub.keypair)
+
+    # print(all_sub_accounts)
+    # print(all_active_accounts[0].mint)
+
+    missing_accounts = find_missing_accounts(all_active_accounts, all_sub_accounts)
+    missing_str = ""
+    for account in missing_accounts:
+        missing_str += f"{account.symbol} -"
+    print(f"Wallet at {sub.pubkey()} is missing the following: {missing_str}")
+
+    # acc = all_active_accounts[0]
+    # acc.get_balance
+
+    # for account in all_active_accounts:
+    #     print(account)
+    #     print(account.token_account["mint"])
+
+    return
+
+    active_wallet = wallets.sub_wallets[4]
+    accounts = helius.get_accounts(active_wallet)
+    print(accounts)
+    # for account in accounts:
+    #     pprint(account.token_account)
+    #     pprint(account.asset)
+    acc = accounts[0]
+    balance = acc.get_balance()
+    print(balance)
+    print(acc.get_token_address())
+    return
+
+    # print(wallets.sub_wallets[3].pubkey())
+    # print(str(wallets.sub_wallets[3].pubkey()))
+    sub = "5dhqSo9ekzQdDELQK2isLgqoAfXQnk5oApdDMc1XDwQE"
+    mint = Pubkey.from_string("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU")
+    spl_client = Token(
+        conn=client, pubkey=mint, program_id=TOKEN_PROGRAM_ID, payer=main_wallet
+    )
+    dest_key = spl_client.create_account(Pubkey.from_string(sub))
+    print(dest_key)
+    # info = spl_client.get_account_info(Pubkey.from_string(sub))
+    # print(info)
+    amount = 1000000
+    source_usdc = Pubkey.from_string("E9RuipUGU7NAns9t81PFyhcBNWF3Q6hHaA29yUA2ThXb")
+
+    transaction = spl_client.transfer(
+        source=source_usdc,
+        dest=dest_key,
+        owner=main_wallet,
+        amount=amount,
+        multi_signers=None,
+        opts=None,
+        recent_blockhash=None,
+    )
+    return
+    accounts = helius.get_accounts(str(wallets.sub_wallets[3].pubkey()))
+    for account in accounts:
+        print(account.amount)
+        pprint(account.token_account)
+        pprint(account.asset)
+
+    return
+
+    mint = Pubkey.from_string("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU")
+    spl_client = Token(
+        conn=client, pubkey=mint, program_id=TOKEN_PROGRAM_ID, payer=main_wallet
+    )
+    source_usdc = Pubkey.from_string("E9RuipUGU7NAns9t81PFyhcBNWF3Q6hHaA29yUA2ThXb")
+
+    # Example usage: Transfer tokens
+    source = main_wallet.pubkey()
+    dest = wallets.main_wallet.pubkey()
+
+    # print("-------------------")
+    # accounts = helius.get_accounts("GgCrjahYZvWVF3vZn4ybCEgCNjAnX4jWJ86kCjy34WEa")
+    # for account in accounts:
+    #     print(account.amount)
+    #     pprint(account.token_account)
+    #     pprint(account.asset)
+    amount = 1000000
+
+    dest_usdc = Pubkey.from_string("Bcyn9gkiJPc9rBqEQvBxKX84uvkvWHNjtfLoPZfbrvGy")
+    transaction = spl_client.transfer(
+        source=source_usdc,
+        dest=dest_usdc,
+        owner=main_wallet,
+        amount=amount,
+        multi_signers=None,
+        opts=None,
+        recent_blockhash=None,
+    )
+    print("Done")
+
+    return
 
 
 def main():
+    move()
+    return
     clear()
     wallets = Wallets("devnet")
-    runner = Runner("devnet", wallets, devnet_user_wallet)
+    runner = Menu("devnet", wallets, devnet_user_wallet)
 
     # runner.distribute()
     # runner.return_coins()

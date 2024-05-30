@@ -1,29 +1,38 @@
+from typing import Literal
 import requests
+from solders.keypair import Keypair
 from sol_wallets.Account import Account
+from sol_wallets.Env import get_key
 
 
 class Helius:
-    def __init__(self, API_KEY):
-        self.url = f"https://mainnet.helius-rpc.com/?api-key={API_KEY}"
+    network: str = "mainnet"
 
-    def get_accounts(self, owner):
-        accounts = self.get_token_accounts(owner)
+    def __init__(self, API_KEY, network="mainnet"):
+        self.network = network
+        self.url = f"https://{network}.helius-rpc.com/?api-key={API_KEY}"
+
+    def get_accounts(self, owner: Keypair):
+        owner_pubkey = owner.pubkey()
+        token_accounts = self.get_token_accounts(owner_pubkey)
 
         ids = []
         amounts = []
-        for account in accounts:
+        for account in token_accounts:
             ids.append(account["mint"])
             amounts.append(account["amount"])
 
-        assets = self.get_asset(ids)
+        assets = self.get_assets(ids)
         accounts = []
         for i, asset in enumerate(assets):
-            accounts.append(Account(asset, amounts[i]))
+            accounts.append(
+                Account(token_accounts[i], asset, amounts[i], self.network, owner)
+            )
 
         self.accounts = accounts
         return accounts
 
-    def get_asset(self, accounts):
+    def get_assets(self, accounts):
         headers = {"Content-Type": "application/json"}
         payload = {
             "jsonrpc": "2.0",
@@ -43,6 +52,28 @@ class Helius:
             return result
         else:
             print(f"Request failed with status code {response.status_code}")
+            return []
+
+    def get_asset(self, id):
+        headers = {"Content-Type": "application/json"}
+        # Define the payload
+        payload = {
+            "jsonrpc": "2.0",
+            "id": "test",
+            "method": "getAsset",
+            "params": {"id": id},
+        }
+
+        # Make the POST request
+        response = requests.post(self.url, headers=headers, json=payload)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            # Parse the JSON response
+            data = response.json()
+            return data
+        else:
+            print(f"Request failed with status code {response.status_code}")
 
     def get_token_accounts(self, owner):
         headers = {"Content-Type": "application/json"}
@@ -57,7 +88,7 @@ class Helius:
                 "displayOptions": {
                     "showZeroBalance": False,
                 },
-                "owner": owner,
+                "owner": str(owner),
             },
         }
 
@@ -74,3 +105,7 @@ class Helius:
         else:
             print(f"Request failed with status code {response.status_code}")
             return []
+
+
+def get_helius(network: Literal["mainnet", "testnet", "devnet"]):
+    return Helius(get_key("HELIUS_KEY"), network=network)

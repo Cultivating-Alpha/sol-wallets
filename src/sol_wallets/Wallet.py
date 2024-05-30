@@ -1,8 +1,8 @@
 import base58
 from solders.keypair import Keypair
 from mnemonic import Mnemonic
-
 from sol_wallets.Client import get_client
+from sol_wallets.Helius import get_helius
 
 
 class Wallet:
@@ -23,6 +23,7 @@ class Wallet:
             print("Please provider either mnemo or secret!")
 
         self.client = get_client(network)
+        self.network = network
 
     def from_bytes(self, data):
         return Keypair.from_bytes(bytes(data))
@@ -50,3 +51,12 @@ class Wallet:
 
     def get_balance(self):
         return self.client.get_balance(self.keypair.pubkey()).value / 1_000_000_000
+
+    def get_token_balances(self):
+        accounts = self.get_wallet_accounts()
+        for account in accounts:
+            print(account.get_balance())
+
+    def get_wallet_accounts(self):
+        self.accounts = get_helius(self.network).get_accounts(self.keypair)
+        return self.accounts
