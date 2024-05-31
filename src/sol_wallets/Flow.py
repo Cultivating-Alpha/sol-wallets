@@ -19,7 +19,7 @@ class Flow:
                 print("There is a missing amount, but it's too small. Passing!")
                 return
             print(
-                f"Target Wallet's balance needs {missing_amount / 1_000} -- its balance is {balance}"
+                f"Target Wallet's balance needs {missing_amount / 1_000} SOL -- its balance is {balance}"
             )
 
             self.action.move_sol(
@@ -30,10 +30,10 @@ class Flow:
         balance = self.target_wallet.get_balance()
         money_to_return = math.floor(balance * 1_000) - 1
         if money_to_return == 0:
-            print("money to return is too small. Passing")
+            print("SOL to return is too small. Passing")
             return
         print(
-            f"Target Wallet has {balance}. It needs to return {money_to_return / 1_000}"
+            f"Target Wallet has {balance} SOL. It needs to return {money_to_return / 1_000}"
         )
         print("")
         self.action.move_sol(

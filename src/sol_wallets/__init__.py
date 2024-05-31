@@ -1,18 +1,9 @@
-import os
-from simple_term_menu import TerminalMenu
-from sol_wallets.Actions import Actions
 from sol_wallets.Wallet import Wallet
 from sol_wallets.Wallets import Wallets
-from sol_wallets.Flow import Flow
 from sol_wallets.pprint import pprint
-from sol_wallets.sol_price import get_solana_price
-from sol_wallets.Helpers import round_value
-from tqdm import tqdm
-import math
-from tabulate import tabulate
 from spl.token.client import Token
 
-from sol_wallets.Helius import Helius, get_helius
+from sol_wallets.Helius import get_helius
 from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import transfer_checked, TransferCheckedParams
 from sol_wallets.Menu import clear, Menu
@@ -24,7 +15,6 @@ sample_wallets = {
     "main": "BuouBWx5AVadDXzKFwBxaAxUnT3K5H6rRQmtAeCYGyLM",
     "devnet": "51iAWLX4niXKE2LFUCKDH1CJSrEqD1z5owcPsZpCUfGq",
 }
-
 
 secret = "27FBSJH6NZipnEM2M1PNDV5P9wAvnr9kca2Ds4ipMXo7nLTK5W6DSJBPZccQoq9t17hM74evEBTyQAhogSFj4Gso"
 devnet_user_wallet = Wallet(network="devnet", secret=secret)
@@ -44,11 +34,17 @@ def find_missing_accounts(source_accounts, _target_accounts):
 
 
 def move():
-    print(wallets.main_wallet.pubkey())
-    bal = wallets.main_wallet.get_balance()
-    print(bal)
-    bal = wallets.main_wallet.get_token_balances()
-    print(bal)
+    # bal = wallets.main_wallet.get_balance()
+    # print(bal)
+    # bal = wallets.main_wallet.get_token_balances()
+    # print(bal)
+
+    wallets = Wallets("devnet")
+    menu = Menu("devnet", wallets, devnet_user_wallet)
+    menu.return_amount_to_user()
+    # menu.fund_main_wallet()
+
+    # menu.show_menu()
     return
     helius = get_helius("devnet")
     all_active_accounts = helius.get_accounts(main_wallet)

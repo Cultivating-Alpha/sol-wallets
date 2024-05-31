@@ -11,11 +11,15 @@ class Account:
     name: str
     symbol: str = ""
     mint: str = ""
+    address: str = ""
+    pubkey: Pubkey
 
     def __init__(self, token_account, asset, amount, network, owner):
         self.network = network
         self.client = get_client(self.network)
         self.token_account = token_account
+        self.address = token_account["address"]
+        self.pubkey = Pubkey.from_string(self.address)
         self.mint = token_account["mint"]
         self.asset = asset
         self.decimal = asset["token_info"]["decimals"]
@@ -37,6 +41,9 @@ class Account:
         self.spl_client = Token(
             conn=self.client, pubkey=mint, program_id=TOKEN_PROGRAM_ID, payer=owner
         )
+
+    def format_amount(self, amount):
+        return int(amount * 10**self.decimal)
 
     def create_token_account(self, pubkey: Pubkey = None, pubkey_str: str = ""):
         if pubkey_str != "":

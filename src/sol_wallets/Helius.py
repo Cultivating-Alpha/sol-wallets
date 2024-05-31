@@ -7,6 +7,7 @@ from sol_wallets.Env import get_key
 
 class Helius:
     network: str = "mainnet"
+    accounts: list[Account] = []
 
     def __init__(self, API_KEY, network="mainnet"):
         self.network = network

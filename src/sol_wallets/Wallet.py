@@ -6,6 +6,8 @@ from sol_wallets.Helius import get_helius
 
 
 class Wallet:
+    network = "mainnet"
+
     def __init__(
         self,
         network="devnet",
@@ -55,7 +57,8 @@ class Wallet:
     def get_token_balances(self):
         accounts = self.get_wallet_accounts()
         for account in accounts:
-            print(account.get_balance())
+            balance = account.get_balance()
+            print(f"You have {balance} ({account.symbol}) --> {account.mint}")
 
     def get_wallet_accounts(self):
         self.accounts = get_helius(self.network).get_accounts(self.keypair)

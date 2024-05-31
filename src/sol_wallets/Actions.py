@@ -7,10 +7,15 @@ from solders.message import MessageV0
 from solders.transaction import VersionedTransaction
 from solders.compute_budget import set_compute_unit_price
 
+from sol_wallets.Helius import get_helius
+from sol_wallets.SPL_Actions import SPL_Actions
+from sol_wallets.Wallet import Wallet
+
 
 class Actions:
     def __init__(self, network="devnet"):
         self.client = get_client(network)
+        self.helius = get_helius(network)
 
     def move_sol(self, sender: Keypair, receiver: Keypair, amount):
         print(
@@ -27,118 +32,40 @@ class Actions:
         txn = Transaction(fee_payer=sender.pubkey()).add(ix)
         self.client.send_transaction(txn, sender)
 
+    def move_tokens(self, source_wallet: Wallet, destination_wallet: Wallet, amount):
+        print(destination_wallet.keypair.pubkey())
+        source_accounts = self.helius.get_accounts(source_wallet.keypair)
+        destination_accounts = self.helius.get_accounts(destination_wallet.keypair)
+        print(source_accounts)
+        print(destination_accounts)
+        missing_accounts = SPL_Actions.find_missing_accounts(
+            source_accounts, destination_accounts
+        )
+        print(missing_accounts)
 
-# # Function to equally distribute SOL from the main wallet to sub wallets
-# def distribute_sol():
-#     # Get the balance of the main wallet
-#     balance = client.get_balance(main_wallet.public_key)["result"]["value"]
-#     if balance <= 0:
-#         print("Main wallet has no SOL to distribute.")
-#         return
+        # dest_key = spl_client.create_account(Pubkey.from_string(sub))
+        return
+        # print("There are no missing accounts")
+        # print(destination_accounts)
 
-#     # Calculate the amount to transfer to each sub wallet
-#     amount_per_wallet = balance // 25
+        for acc in source_accounts:
+            balance = acc.get_balance()
+            spl_action = SPL_Actions(acc, source_wallet, acc.token_account)
 
-#     # Create and send the transactions
-#     tx = Transaction()
-#     for sub_wallet in sub_wallets:
-#         tx.add(
-#             transfer(
-#                 from_pubkey=main_wallet.public_key,
-#                 to_pubkey=sub_wallet.public_key,
-#                 lamports=amount_per_wallet,
-#             )
-#         )
+            amount = acc.format_amount(balance)
 
-#     response = client.send_transaction(tx, main_wallet)
-#     print(response)
-
-
-# # Function to transfer all SOL from sub wallets back to the main wallet
-# def consolidate_sol():
-#     tx = Transaction()
-#     for sub_wallet in sub_wallets:
-#         balance = client.get_balance(sub_wallet.public_key)["result"]["value"]
-#         if balance > 0:
-#             tx.add(
-#                 transfer(
-#                     from_pubkey=sub_wallet.public_key,
-#                     to_pubkey=main_wallet.public_key,
-#                     lamports=balance,
-#                 )
-#             )
-
-#     response = client.send_transaction(tx, *sub_wallets)
-#     print(response)
-
-
-# # Function to distribute SPL tokens
-# def distribute_spl_tokens(token_mint):
-#     # Get the associated token address for the main wallet
-#     main_token_account = get_associated_token_address(
-#         main_wallet.public_key, token_mint
-#     )
-#     token_balance = client.get_token_account_balance(main_token_account)["result"][
-#         "value"
-#     ]["amount"]
-
-#     if int(token_balance) <= 0:
-#         print("Main wallet has no SPL tokens to distribute.")
-#         return
-
-#     amount_per_wallet = int(token_balance) // 25
-
-#     tx = Transaction()
-#     for sub_wallet in sub_wallets:
-#         sub_wallet_token_account = get_associated_token_address(
-#             sub_wallet.public_key, token_mint
-#         )
-#         tx.add(
-#             create_associated_token_account(
-#                 main_wallet.public_key, sub_wallet.public_key, token_mint
-#             )
-#         )
-#         tx.add(
-#             transfer_checked(
-#                 source=main_token_account,
-#                 dest=sub_wallet_token_account,
-#                 owner=main_wallet.public_key,
-#                 amount=amount_per_wallet,
-#                 decimals=0,
-#                 token_program_id=TOKEN_PROGRAM_ID,
-#                 mint=token_mint,
-#             )
-#         )
-
-#     response = client.send_transaction(tx, main_wallet)
-#     print(response)
-
-
-# # Function to consolidate SPL tokens back to the main wallet
-# def consolidate_spl_tokens(token_mint):
-#     tx = Transaction()
-#     main_token_account = get_associated_token_address(
-#         main_wallet.public_key, token_mint
-#     )
-
-#     for sub_wallet in sub_wallets:
-#         sub_wallet_token_account = get_associated_token_address(
-#             sub_wallet.public_key, token_mint
-#         )
-#         token_balance = client.get_token_account_balance(sub_wallet_token_account)[
-#             "result"
-#         ]["value"]["amount"]
-#         if int(token_balance) > 0:
-#             tx.add(
-#                 transfer_checked(
-#                     source=sub_wallet_token_account,
-#                     dest=main_token_account,
-#                     owner=sub_wallet.public_key,
-#                     amount=int(token_balance),
-#                     decimals=0,
-#                     token_program_id=TOKEN_PROGRAM_ID,
-#                     mint=token_mint,
-#                 )
-#             )
-#     response = client.send_transaction(tx, *sub_wallets)
-#     print(response)
+            destination_acc = None
+            print(acc.mint)
+            for _acc in destination_accounts:
+                print(_acc.mint)
+                if _acc.mint == acc.mint:
+                    destination_acc = _acc
+                    break
+            print(destination_acc)
+            if destination_acc is not None:
+                # print(destination_acc)
+                # print(destination_acc.address)
+                # print(destination_acc.pubkey)
+                # destination_token_accounts = acc.token_account
+                spl_action.transfer_token_to_address(destination_acc.pubkey, amount)
+            break

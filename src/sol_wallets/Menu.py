@@ -1,4 +1,5 @@
 import os
+from termcolor import colored, cprint
 from simple_term_menu import TerminalMenu
 from sol_wallets.Actions import Actions
 from sol_wallets.Wallet import Wallet
@@ -10,8 +11,10 @@ from tqdm import tqdm
 import math
 from tabulate import tabulate
 from sol_wallets.Env import get_key
+from sol_wallets.SPL_Actions import SPL_Actions
 
-from sol_wallets.Helius import Helius
+
+from sol_wallets.Helius import get_helius
 
 
 def clear():
@@ -20,20 +23,38 @@ def clear():
 
 class Menu:
     min_usd_balance = 10
+    selected_token_account = None
 
     def __init__(self, network: str, wallets: Wallets, main_user_wallet: Wallet):
         self.network = network
         self.main_user_wallet = main_user_wallet
         self.action = Actions(network)
         self.wallets = wallets
+        self.helius = get_helius(network)
         pass
 
-    def menu(self):
+    def show_menu(self):
+        clear()
+        cprint("MAIN MENU", "red", attrs=["bold"])
+        if self.selected_token_account is not None:
+            account = self.selected_token_account
+            print(
+                f"Currently selected token account: {account.symbol} -- {account.mint}"
+            )
+        print()
+
         options = [
             "[i] Inspect Bot's main Wallet",
-            "[s] Inspect Bot's sub Wallets",
-            "[d] Distribute Sol to sub wallets",
+            "[ ] Inspect Bot's sub Wallets",
+            # "[ ] Inspect USER Wallets",
+            "",
+            "[c] Choose token to transfer",
+            "",
+            "[t] Distribute Token to sub wallets",
+            "[s] Distribute Sol to sub wallets",
+            "",
             "[a] Transfer all SOL back to main wallet",
+            "",
             "[r] Return money to main user",
             "[f] Fund main bot wallet from user wallet",
             # "[v] View my account balances",
@@ -41,54 +62,40 @@ class Menu:
             # "[c] Consolidate SPL tokens",
         ]
         terminal_menu = TerminalMenu(
-            options, title="Main Menu", shortcut_key_highlight_style=("fg_green",)
+            options, shortcut_key_highlight_style=("fg_green",), skip_empty_entries=True
         )
         menu_entry_index = terminal_menu.show()
-        if menu_entry_index == 0:
+        if type(menu_entry_index) != int:
+            return
+        result = options[menu_entry_index]
+
+        if result == "[i] Inspect Bot's main Wallet":
             self.inspect_main_wallet()
-        elif menu_entry_index == 1:
+            self.view_account_balances()
+        elif result == "[ ] Inspect Bot's sub Wallets":
             self.inspect_sub_wallets()
-        elif menu_entry_index == 2:
-            self.distribute()
-        elif menu_entry_index == 3:
+        elif result == "[ ] Inspect USER Wallets":
+            self.inspect_user_wallets()
+        elif result == "[c] Choose token to transfer":
+            self.choose_token()
+        elif result == "[s] Distribute Sol to sub wallets":
+            self.distribute_sol()
+        elif result == "[a] Transfer all SOL back to main wallet":
             self.return_coins()
-        elif menu_entry_index == 4:
+        elif result == "[r] Return money to main user":
             self.return_amount_to_user()
-        elif menu_entry_index == 5:
+        elif result == "[f] Fund main bot wallet from user wallet":
             self.fund_main_wallet()
+
         # elif menu_entry_index == 6:
         #     self.view_account_balances()
         print()
 
-        user_input = input("Please Enter to continue...")
-        print(user_input)
+        if result != "[c] Choose token to transfer":
+            user_input = input("Please Enter to continue...")
+            print(user_input)
 
-        clear()
-        self.menu()
-
-    def view_account_balances(self):
-        print("Fetching token balances for owner: {OWNER}")
-        helius = Helius(get_key("HELIUS_KEY"), network=self.network)
-        helius.get_accounts(get_key("OWNER"))
-
-        headers = ["Coin", "Balance", "Name"]
-        table = []
-        for account in helius.accounts:
-            # print(f"You have {account.amount} ({account.symbol}) --> {account.name}")
-            table.append([account.symbol, account.amount, account.name])
-        print(tabulate(table, headers=headers, tablefmt="grid"))
-
-    def inspect_sub_wallets(self):
-        print("Inspecting the sub wallets...\n")
-        table = []
-        for i in tqdm(range(len(self.wallets.sub_wallets))):
-            wallet = self.wallets.sub_wallets[i]
-            table.append(
-                [str(wallet.pubkey()), wallet.get_balance(), wallet.private_key()]
-            )
-
-        headers = ["Wallet", "Balance (SOL)", "Private Key"]
-        print(tabulate(table, headers=headers, tablefmt="grid"))
+        self.show_menu()
 
     def inspect_main_wallet(self):
         print("Inspecting the main bot's balance...\n")
@@ -105,7 +112,48 @@ class Menu:
         headers = ["Wallet", "Balance (SOL)", "Private Key"]
         print(tabulate(table, headers=headers, tablefmt="grid"))
 
-    def distribute(self):
+    def view_account_balances(self):
+        print()
+        print(
+            f"Fetching token balances for owner: {self.wallets.main_wallet.pubkey()}..."
+        )
+        self.helius.get_accounts(self.wallets.main_wallet.keypair)
+
+        headers = ["Mint", "Balance", "Name"]
+        table = []
+        for account in self.helius.accounts:
+            # print(f"You have {account.amount} ({account.symbol}) --> {account.name}")
+            table.append([account.mint, account.amount, account.name])
+        print(tabulate(table, headers=headers, tablefmt="grid"))
+
+    def choose_token(self):
+        self.helius.get_accounts(self.wallets.main_wallet.keypair)
+
+        options = []
+        for account in self.helius.accounts:
+            options.append(f"{account.mint} --> {account.name} ({account.symbol})")
+        terminal_menu = TerminalMenu(
+            options, shortcut_key_highlight_style=("fg_green",)
+        )
+        menu_entry_index = terminal_menu.show()
+
+        if type(menu_entry_index) != int:
+            return
+        self.selected_token_account = self.helius.accounts[menu_entry_index]
+
+    def inspect_sub_wallets(self):
+        print("Inspecting the sub wallets...\n")
+        table = []
+        for i in tqdm(range(len(self.wallets.sub_wallets))):
+            wallet = self.wallets.sub_wallets[i]
+            table.append(
+                [str(wallet.pubkey()), wallet.get_balance(), wallet.private_key()]
+            )
+
+        headers = ["Wallet", "Balance (SOL)", "Private Key"]
+        print(tabulate(table, headers=headers, tablefmt="grid"))
+
+    def distribute_sol(self):
         main_wallet = self.wallets.main_wallet
         balance = self.wallets.main_wallet.get_balance()
         solana_price_usd = get_solana_price()
@@ -149,6 +197,16 @@ class Menu:
         flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
         flow.return_amount_to_user()
 
+        source_wallet = self.wallets.main_wallet
+        destination_wallet = self.main_user_wallet
+        action = Actions(self.network)
+        action.move_tokens(source_wallet, destination_wallet, 1)
+
     def fund_main_wallet(self):
-        flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
-        flow.refill_target(0.1)
+        # flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
+        # flow.refill_target(0.1)
+
+        source_wallet = self.main_user_wallet
+        destination_wallet = self.wallets.main_wallet
+        action = Actions(self.network)
+        action.move_tokens(source_wallet, destination_wallet, 1)
