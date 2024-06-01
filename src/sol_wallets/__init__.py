@@ -29,16 +29,17 @@ def find_missing_accounts(source_accounts, _target_accounts):
 
 usdc_devnet_mint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
 
+secret = "27FBSJH6NZipnEM2M1PNDV5P9wAvnr9kca2Ds4ipMXo7nLTK5W6DSJBPZccQoq9t17hM74evEBTyQAhogSFj4Gso"
+wallets = Wallets("devnet")
+devnet_user_wallet = Wallet(network="devnet", secret=secret)
+
 
 def move():
-    secret = "27FBSJH6NZipnEM2M1PNDV5P9wAvnr9kca2Ds4ipMXo7nLTK5W6DSJBPZccQoq9t17hM74evEBTyQAhogSFj4Gso"
-    wallets = Wallets("devnet")
-    devnet_user_wallet = Wallet(network="devnet", secret=secret)
-    devnet_user_wallet.prepare_token_accounts()
-    balance = devnet_user_wallet.get_balance()
-    print(balance)
-    balance = devnet_user_wallet.get_token_balances()
-    print(balance)
+    # devnet_user_wallet.prepare_token_accounts()
+    # balance = devnet_user_wallet.get_balance()
+    # print(balance)
+    # balance = devnet_user_wallet.get_token_balances()
+    # print(balance)
     # print(devnet_user_wallet.keypair.pubkey())
     return
 
@@ -76,15 +77,31 @@ def move():
     return
 
 
-def main():
-    move()
-    return
+async def run():
+    # move()
     clear()
     wallets = Wallets("devnet")
-    runner = Menu("devnet", wallets, devnet_user_wallet)
+    menu = Menu("devnet", wallets, devnet_user_wallet)
+    # menu.fund_main_wallet(usdc_devnet_mint, 8)
+    # menu.return_amount_to_user(usdc_devnet_mint)
+    await menu.show_menu()
 
     # runner.distribute()
     # runner.return_coins()
-    runner.menu()
+    # runner.menu()
     # flow.return_amount_to_user()
     return
+
+
+import asyncio
+
+
+def main():
+    # Get the event loop
+    loop = asyncio.get_event_loop()
+
+    # Run the async function until completion
+    loop.run_until_complete(run())
+
+    # Close the loop
+    loop.close()

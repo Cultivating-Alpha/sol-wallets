@@ -33,7 +33,9 @@ class Menu:
         self.helius = get_helius(network)
         pass
 
-    def show_menu(self):
+    async def show_menu(self):
+        if self.selected_token_account is None:
+            self.choose_token()
         clear()
         cprint("MAIN MENU", "red", attrs=["bold"])
         if self.selected_token_account is not None:
@@ -50,10 +52,8 @@ class Menu:
             "",
             "[c] Choose token to transfer",
             "",
-            "[t] Distribute Token to sub wallets",
-            "[s] Distribute Sol to sub wallets",
-            "",
-            "[a] Transfer all SOL back to main wallet",
+            "[d] Distribute Token to sub wallets",
+            "[t] Transfer all SOL back to main wallet",
             "",
             "[r] Return money to main user",
             "[f] Fund main bot wallet from user wallet",
@@ -74,18 +74,16 @@ class Menu:
             self.view_account_balances()
         elif result == "[ ] Inspect Bot's sub Wallets":
             self.inspect_sub_wallets()
-        elif result == "[ ] Inspect USER Wallets":
-            self.inspect_user_wallets()
         elif result == "[c] Choose token to transfer":
             self.choose_token()
-        elif result == "[s] Distribute Sol to sub wallets":
-            self.distribute_sol()
-        elif result == "[a] Transfer all SOL back to main wallet":
-            self.return_coins()
+        elif result == "[d] Distribute Token to sub wallets":
+            await self.distribute_sol(self.selected_token_account.mint)
+        elif result == "[t] Transfer all SOL back to main wallet":
+            await self.return_coins(self.selected_token_account.mint)
         elif result == "[r] Return money to main user":
-            self.return_amount_to_user()
+            self.return_amount_to_user(self.selected_token_account.mint)
         elif result == "[f] Fund main bot wallet from user wallet":
-            self.fund_main_wallet()
+            self.fund_main_wallet(self.selected_token_account.mint, 5)
 
         # elif menu_entry_index == 6:
         #     self.view_account_balances()
@@ -95,7 +93,7 @@ class Menu:
             user_input = input("Please Enter to continue...")
             print(user_input)
 
-        self.show_menu()
+        await self.show_menu()
 
     def inspect_main_wallet(self):
         print("Inspecting the main bot's balance...\n")
@@ -127,10 +125,12 @@ class Menu:
         print(tabulate(table, headers=headers, tablefmt="grid"))
 
     def choose_token(self):
-        self.helius.get_accounts(self.wallets.main_wallet.keypair)
+        print("Please choose the token (mint-address) to be used")
+        raw_token_accounts = self.wallets.main_wallet._raw_token_accounts
+        token_accounts = self.wallets.main_wallet.token_accounts
 
         options = []
-        for account in self.helius.accounts:
+        for account in raw_token_accounts:
             options.append(f"{account.mint} --> {account.name} ({account.symbol})")
         terminal_menu = TerminalMenu(
             options, shortcut_key_highlight_style=("fg_green",)
@@ -139,7 +139,7 @@ class Menu:
 
         if type(menu_entry_index) != int:
             return
-        self.selected_token_account = self.helius.accounts[menu_entry_index]
+        self.selected_token_account = raw_token_accounts[menu_entry_index]
 
     def inspect_sub_wallets(self):
         print("Inspecting the sub wallets...\n")
@@ -153,60 +153,79 @@ class Menu:
         headers = ["Wallet", "Balance (SOL)", "Private Key"]
         print(tabulate(table, headers=headers, tablefmt="grid"))
 
-    def distribute_sol(self):
+    async def distribute_sol(self, mint):
         main_wallet = self.wallets.main_wallet
         balance = self.wallets.main_wallet.get_balance()
-        solana_price_usd = get_solana_price()
-        balance_in_usd = balance * solana_price_usd
-        print(f"The main bot has {balance} SOL ({balance_in_usd:.2f}$)")
-        if balance_in_usd < self.min_usd_balance:
-            print("The balance is less than the min required. Please top up first!")
-            return
+        token_balance = self.wallets.main_wallet.get_token_balance(
+            self.selected_token_account.mint
+        )
+        print(
+            f"The main bot has {balance} SOL and {token_balance} {self.selected_token_account.mint} balance"
+        )
 
-        sub_wallets = self.wallets.sub_wallets
-        count = len(sub_wallets)
-        amount_per_wallet = round_value(balance / count, 0.001)
-        print(f"We have {count} wallets. Each will receive {amount_per_wallet} SOL")
-        print("=============================================")
-        print()
+        number_of_sub_wallets = len(self.wallets.sub_wallets)
+        sol_per_wallet = balance / number_of_sub_wallets
+        token_per_wallet = token_balance / number_of_sub_wallets
+        print(f"We will distribute {sol_per_wallet} SOL for each subwallet")
+        print(f"We will distribute {token_per_wallet} of the selected token")
 
         for i in tqdm(range(len(self.wallets.sub_wallets))):
             sub = self.wallets.sub_wallets[i]
 
-            self.action.move_sol(
-                main_wallet.keypair, sub.keypair, amount_per_wallet * 1_000
+            # await self.action.move_sol(
+            #     main_wallet.keypair, sub.keypair, sol_per_wallet * 1_000
+            # )
+            print()
+            main_wallet.transfer_tokens(
+                mint, sub.get_token_account(mint).address, token_per_wallet
+            )
+
+    async def return_coins(self, mint):
+        solana_price = get_solana_price()
+        main_wallet = self.wallets.main_wallet
+        for i in tqdm(range(len(self.wallets.sub_wallets))):
+            print("--------------------------")
+            sub = self.wallets.sub_wallets[i]
+
+            balance = sub.get_balance()
+            balance_in_usd = balance * get_solana_price()
+            token_balance = sub.get_token_balance(self.selected_token_account.mint)
+            if balance_in_usd < 1:
+                continue
+            balance = balance - 0.001
+            print(
+                f"The sub wallet  has {balance} SOL and {token_balance} {self.selected_token_account.mint} balance"
+            )
+
+            await self.action.move_sol(
+                sub.keypair, main_wallet.keypair, balance * 1_000
             )
             print()
 
-    def return_coins(self):
-        main_wallet = self.wallets.main_wallet
-        for i in tqdm(range(len(self.wallets.sub_wallets))):
-            sub = self.wallets.sub_wallets[i]
-            balance = sub.get_balance()
-
-            money_to_return = math.floor(balance * 1_000)
-            if money_to_return != 0:
-                print(f"wallet {sub.pubkey()} has {balance} SOL")
-                balance_to_return = balance - 0.001
-                self.action.move_sol(
-                    sub.keypair, main_wallet.keypair, balance_to_return * 1_000
-                )
-                print()
-
-    def return_amount_to_user(self):
+    def return_amount_to_user(self, mint):
         flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
         flow.return_amount_to_user()
 
-        source_wallet = self.wallets.main_wallet
-        destination_wallet = self.main_user_wallet
-        action = Actions(self.network)
-        action.move_tokens(source_wallet, destination_wallet, 1)
+        print()
+        print()
 
-    def fund_main_wallet(self):
-        # flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
-        # flow.refill_target(0.1)
+        amount = self.wallets.main_wallet.get_token_balance(mint)
+        if amount > 0.0:
+            self.wallets.main_wallet.transfer_tokens(
+                mint, self.main_user_wallet.get_token_account(mint).address, amount
+            )
 
-        source_wallet = self.main_user_wallet
-        destination_wallet = self.wallets.main_wallet
-        action = Actions(self.network)
-        action.move_tokens(source_wallet, destination_wallet, 1)
+    def fund_main_wallet(self, mint, amount):
+        flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
+        flow.refill_target(0.5)
+
+        print()
+        print()
+        _amount = self.main_user_wallet.get_token_balance(mint)
+        if _amount < amount:
+            print("Wallet does not contain enough")
+            return
+
+        self.main_user_wallet.transfer_tokens(
+            mint, self.wallets.main_wallet.get_token_account(mint).address, amount
+        )

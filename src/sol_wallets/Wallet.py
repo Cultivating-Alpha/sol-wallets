@@ -15,7 +15,7 @@ from sol_wallets.SPL_Actions import SPL_Actions
 
 class NewAddress:
     def __init__(self, address, name):
-        self.address = address
+        self.address = str(address)
 
 
 class Wallet:
@@ -110,10 +110,12 @@ class Wallet:
         if mint in self.token_accounts.keys():
             account = self.token_accounts[mint]
             balance = account["token_account"].get_balance()
-            print(account["token_account"].get_token_address())
-            print(f"You have {balance} ({account['token_account'].symbol}) --> {mint}")
+            # print(account["token_account"].get_token_address())
+            # print(f"You have {balance} ({account['token_account'].symbol}) --> {mint}")
+            return balance
         else:
             print("Token account not found!")
+            return 0
 
     def get_wallet_accounts(self):
         self.accounts = get_helius(self.network).get_accounts(self.keypair)
@@ -137,6 +139,7 @@ class Wallet:
         if mint in self.token_accounts.keys():
             account = self.token_accounts[mint]
             print(account)
+            print(destination_wallet)
             amount_to_send = account["token_account"].format_amount(amount)
             print(amount_to_send)
             spl_client: SPL_Actions = account["spl_client"]

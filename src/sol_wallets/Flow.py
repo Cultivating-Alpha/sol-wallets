@@ -14,7 +14,7 @@ class Flow:
     def refill_target(self, min_amount: float):
         balance = self.target_wallet.get_balance()
         if balance < min_amount:
-            missing_amount = math.floor(100 - balance * 1000)
+            missing_amount = math.floor(min_amount * 1000 - balance * 1000)
             if missing_amount == 0:
                 print("There is a missing amount, but it's too small. Passing!")
                 return

@@ -29,6 +29,7 @@ class SPL_Actions:
         print(
             f"Transfering {amount / 10**self.account.decimal} {self.account.name} between:\nSender: {source}\nReceiver: {dest}"
         )
+        print(type(dest))
 
         self.spl_client.transfer(
             source=source,
