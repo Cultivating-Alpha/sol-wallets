@@ -18,6 +18,12 @@ class SPL_Actions:
             payer=main_wallet,
         )
 
+    def get_balance(self):
+        return self.spl_client.get_balance(Pubkey.from_string(self.account.address))
+
+    def create_account(self, destination_key):
+        self.spl_client.create_account(destination_key)
+
     def transfer_token_to_address(self, dest, amount):
         source = Pubkey.from_string(self.main_token_wallet["address"])
         print(
@@ -26,8 +32,8 @@ class SPL_Actions:
 
         self.spl_client.transfer(
             source=source,
-            dest=dest,
-            owner=self.main_wallet.keypair,
+            dest=Pubkey.from_string(dest),
+            owner=self.main_wallet,
             amount=amount,
             multi_signers=None,
             opts=None,
@@ -40,5 +46,5 @@ class SPL_Actions:
         missing = []
         for account in source_accounts:
             if account.mint not in target_accounts:
-                missing.append(account.mint)
+                missing.append(account)
         return missing

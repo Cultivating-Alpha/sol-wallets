@@ -3,6 +3,7 @@ from sol_wallets.Client import get_client
 from spl.token.client import Token
 from spl.token.constants import TOKEN_PROGRAM_ID
 from solders.pubkey import Pubkey
+import json
 
 
 class Account:
@@ -24,6 +25,7 @@ class Account:
         self.asset = asset
         self.decimal = asset["token_info"]["decimals"]
         self.amount = int(amount / 10**self.decimal)
+        self.owner = owner
         try:
             self.symbol = asset["token_info"]["symbol"]
         except KeyError:
@@ -51,6 +53,7 @@ class Account:
         elif not pubkey:
             print("Please provide a valid pubkey or public key string")
             return
+        print(pubkey)
         return self.spl_client.create_account(pubkey)
 
     def print(self):
@@ -62,3 +65,16 @@ class Account:
     def get_balance(self):
         res = self.spl_client.get_balance(self.get_token_address())
         return res.value.ui_amount
+
+    def to_json(self):
+        return {
+            "token_account": self.token_account,
+            "asset": self.asset,
+            "amount": self.amount,
+            "network": self.network,
+        }
+
+    @classmethod
+    def from_json(cls, json_str):
+        obj_dict = json.loads(json_str)
+        return cls(**obj_dict)

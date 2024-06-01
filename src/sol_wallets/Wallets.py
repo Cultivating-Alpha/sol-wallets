@@ -7,6 +7,7 @@ from sol_wallets import Wallet
 class Wallets:
     main_wallet: Wallet
     sub_wallets: list[Wallet] = []
+    number_of_sub_wallets: int = 0
 
     def __init__(self, network):
         self.wallet_file = f"wallets/{network}-main_wallet.bin"
@@ -22,7 +23,7 @@ class Wallets:
         if os.path.exists(self.wallet_file):
             self.main_wallet = self.read_wallet(self.wallet_file)
             self.sub_wallets = []
-            for idx in range(25):
+            for idx in range(self.number_of_sub_wallets):
                 self.sub_wallets.append(
                     self.read_wallet(f"wallets/{self.network}-sub_wallet-{idx}.bin")
                 )
@@ -45,7 +46,7 @@ class Wallets:
         main_wallet = Keypair()
         self.write_binary(f"wallets/{self.network}-main_wallet.bin", main_wallet)
 
-        sub_wallets = [Keypair() for _ in range(25)]
+        sub_wallets = [Keypair() for _ in range(self.number_of_sub_wallets)]
 
         for idx, sw in enumerate(sub_wallets):
             self.write_binary(f"wallets/{self.network}-sub_wallet-{idx}.bin", sw)
