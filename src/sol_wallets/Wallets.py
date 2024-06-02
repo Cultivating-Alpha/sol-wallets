@@ -7,7 +7,7 @@ from sol_wallets import Wallet
 class Wallets:
     main_wallet: Wallet
     sub_wallets: list[Wallet] = []
-    number_of_sub_wallets: int = 3
+    number_of_sub_wallets: int = 25
 
     def __init__(self, network):
         self.wallet_file = f"wallets/{network}-main_wallet.bin"

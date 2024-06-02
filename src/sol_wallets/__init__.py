@@ -11,7 +11,7 @@ sample_wallets = {
 
 secret = get_key("MAIN_WALLET")
 network = get_key("NETWORK")
-devnet_user_wallet = Wallet(network="devnet", secret=secret)
+devnet_user_wallet = Wallet(network=network, secret=secret)
 
 
 async def run():
