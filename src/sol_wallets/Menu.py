@@ -52,11 +52,15 @@ class Menu:
             "",
             "[c] Choose token to transfer",
             "",
-            "[d] Distribute Token to sub wallets",
+            "[d] Distribute Sol to sub wallets",
+            "[ ] Distribute Token to sub wallets",
             "[t] Transfer all SOL back to main wallet",
+            "[ ] Transfer all Tokens back to main wallet",
             "",
             "[r] Return money to main user",
             "[f] Fund main bot wallet from user wallet",
+            "",
+            "[o] Reset saved data",
             # "[v] View my account balances",
             # "[s] Distribute SPL tokens",
             # "[c] Consolidate SPL tokens",
@@ -76,14 +80,20 @@ class Menu:
             self.inspect_sub_wallets()
         elif result == "[c] Choose token to transfer":
             self.choose_token()
-        elif result == "[d] Distribute Token to sub wallets":
+        elif result == "[d] Distribute Sol to sub wallets":
             await self.distribute_sol(self.selected_token_account.mint)
+        elif result == "[ ] Distribute Token to sub wallets":
+            await self.distribute_tokens(self.selected_token_account.mint)
         elif result == "[t] Transfer all SOL back to main wallet":
             await self.return_coins(self.selected_token_account.mint)
+        elif result == "[ ] Transfer all Tokens back to main wallet":
+            await self.return_tokens(self.selected_token_account.mint)
         elif result == "[r] Return money to main user":
-            self.return_amount_to_user(self.selected_token_account.mint)
+            await self.return_amount_to_user(self.selected_token_account.mint)
         elif result == "[f] Fund main bot wallet from user wallet":
-            self.fund_main_wallet(self.selected_token_account.mint, 5)
+            await self.fund_main_wallet(self.selected_token_account.mint, 5)
+        elif result == "[o] Reset saved data":
+            self.wallets.reset_saved_data()
 
         # elif menu_entry_index == 6:
         #     self.view_account_balances()
@@ -156,29 +166,56 @@ class Menu:
     async def distribute_sol(self, mint):
         main_wallet = self.wallets.main_wallet
         balance = self.wallets.main_wallet.get_balance()
-        token_balance = self.wallets.main_wallet.get_token_balance(
-            self.selected_token_account.mint
-        )
-        print(
-            f"The main bot has {balance} SOL and {token_balance} {self.selected_token_account.mint} balance"
-        )
+        print(f"The main bot has {balance} SOL")
 
         number_of_sub_wallets = len(self.wallets.sub_wallets)
-        sol_per_wallet = balance / number_of_sub_wallets
-        token_per_wallet = token_balance / number_of_sub_wallets
+        sol_per_wallet = balance / number_of_sub_wallets - 0.001
         print(f"We will distribute {sol_per_wallet} SOL for each subwallet")
-        print(f"We will distribute {token_per_wallet} of the selected token")
 
         for i in tqdm(range(len(self.wallets.sub_wallets))):
             sub = self.wallets.sub_wallets[i]
 
-            # await self.action.move_sol(
-            #     main_wallet.keypair, sub.keypair, sol_per_wallet * 1_000
-            # )
+            await self.action.move_sol(
+                main_wallet.keypair, sub.keypair, sol_per_wallet * 1_000
+            )
             print()
+
+    async def distribute_tokens(self, mint):
+        main_wallet = self.wallets.main_wallet
+        token_balance = self.wallets.main_wallet.get_token_balance(
+            self.selected_token_account.mint
+        )
+        print(
+            f"The main bot has {token_balance} {self.selected_token_account.mint} balance"
+        )
+
+        number_of_sub_wallets = len(self.wallets.sub_wallets)
+        token_per_wallet = token_balance / number_of_sub_wallets
+        print(f"We will distribute {token_per_wallet} of the selected token")
+
+        for i in tqdm(range(len(self.wallets.sub_wallets))):
+            sub = self.wallets.sub_wallets[i]
             main_wallet.transfer_tokens(
                 mint, sub.get_token_account(mint).address, token_per_wallet
             )
+
+    async def return_tokens(self, mint):
+        solana_price = get_solana_price()
+        main_wallet = self.wallets.main_wallet
+        for i in tqdm(range(len(self.wallets.sub_wallets))):
+            print("--------------------------")
+            sub = self.wallets.sub_wallets[i]
+            print(sub.pubkey())
+
+            token_balance = sub.get_token_balance(self.selected_token_account.mint)
+            print(
+                f"The sub wallet  has {token_balance} {self.selected_token_account.mint} balance"
+            )
+            sub.transfer_tokens(
+                mint, main_wallet.get_token_account(mint).address, token_balance
+            )
+
+            print()
 
     async def return_coins(self, mint):
         solana_price = get_solana_price()
@@ -189,22 +226,19 @@ class Menu:
 
             balance = sub.get_balance()
             balance_in_usd = balance * get_solana_price()
-            token_balance = sub.get_token_balance(self.selected_token_account.mint)
             if balance_in_usd < 1:
                 continue
             balance = balance - 0.001
-            print(
-                f"The sub wallet  has {balance} SOL and {token_balance} {self.selected_token_account.mint} balance"
-            )
+            print(f"The sub wallet  has {balance} SOL")
 
             await self.action.move_sol(
                 sub.keypair, main_wallet.keypair, balance * 1_000
             )
             print()
 
-    def return_amount_to_user(self, mint):
+    async def return_amount_to_user(self, mint):
         flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
-        flow.return_amount_to_user()
+        await flow.return_amount_to_user()
 
         print()
         print()
@@ -215,9 +249,9 @@ class Menu:
                 mint, self.main_user_wallet.get_token_account(mint).address, amount
             )
 
-    def fund_main_wallet(self, mint, amount):
+    async def fund_main_wallet(self, mint, amount):
         flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
-        flow.refill_target(0.5)
+        await flow.refill_target(0.5)
 
         print()
         print()

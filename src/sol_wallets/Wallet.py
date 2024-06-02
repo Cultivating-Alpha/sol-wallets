@@ -58,11 +58,17 @@ class Wallet:
             self._raw_token_accounts.append(token_account)
             self.token_accounts[token_account.mint] = {
                 "token_account": token_account,
-                "spl_client": Token(
-                    conn=self.client,
-                    pubkey=Pubkey.from_string(token_account.mint),
-                    program_id=TOKEN_PROGRAM_ID,
-                    payer=self.keypair,
+                # "spl_client": Token(
+                #     conn=self.client,
+                #     pubkey=Pubkey.from_string(token_account.mint),
+                #     program_id=TOKEN_PROGRAM_ID,
+                #     payer=self.keypair,
+                # ),
+                "spl_client": SPL_Actions(
+                    account=token_account,
+                    main_wallet=self.keypair,
+                    main_token_wallet=token_account.token_account,
+                    network="devnet",
                 ),
             }
         self.save_token_accounts()
@@ -126,6 +132,7 @@ class Wallet:
             return self.token_accounts[mint]["token_account"]
         else:
             print("Account doesn't exist, so we are creating a new one!")
+            print(self.keypair.pubkey())
             spl_client = Token(
                 conn=self.client,
                 pubkey=Pubkey.from_string(mint),
@@ -138,10 +145,10 @@ class Wallet:
     def transfer_tokens(self, mint, destination_wallet, amount):
         if mint in self.token_accounts.keys():
             account = self.token_accounts[mint]
-            print(account)
-            print(destination_wallet)
+            # print(account)
+            # print(destination_wallet)
             amount_to_send = account["token_account"].format_amount(amount)
-            print(amount_to_send)
+            # print(amount_to_send)
             spl_client: SPL_Actions = account["spl_client"]
             spl_client.transfer_token_to_address(destination_wallet, amount_to_send)
         else:

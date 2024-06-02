@@ -7,7 +7,7 @@ from sol_wallets import Wallet
 class Wallets:
     main_wallet: Wallet
     sub_wallets: list[Wallet] = []
-    number_of_sub_wallets: int = 2
+    number_of_sub_wallets: int = 3
 
     def __init__(self, network):
         self.wallet_file = f"wallets/{network}-main_wallet.bin"
@@ -50,3 +50,8 @@ class Wallets:
 
         for idx, sw in enumerate(sub_wallets):
             self.write_binary(f"wallets/{self.network}-sub_wallet-{idx}.bin", sw)
+
+    def reset_saved_data(self):
+        self.main_wallet.prepare_token_accounts()
+        for sub in self.sub_wallets:
+            sub.prepare_token_accounts()

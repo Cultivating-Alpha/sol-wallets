@@ -11,7 +11,7 @@ class Flow:
         self.user_wallet = user_wallet
         self.target_wallet = target_wallet
 
-    def refill_target(self, min_amount: float):
+    async def refill_target(self, min_amount: float):
         balance = self.target_wallet.get_balance()
         if balance < min_amount:
             missing_amount = math.floor(min_amount * 1000 - balance * 1000)
@@ -22,11 +22,11 @@ class Flow:
                 f"Target Wallet's balance needs {missing_amount / 1_000} SOL -- its balance is {balance}"
             )
 
-            self.action.move_sol(
+            await self.action.move_sol(
                 self.user_wallet.keypair, self.target_wallet.keypair, missing_amount
             )
 
-    def return_amount_to_user(self):
+    async def return_amount_to_user(self):
         balance = self.target_wallet.get_balance()
         money_to_return = math.floor(balance * 1_000) - 1
         if money_to_return == 0:
@@ -36,6 +36,6 @@ class Flow:
             f"Target Wallet has {balance} SOL. It needs to return {money_to_return / 1_000}"
         )
         print("")
-        self.action.move_sol(
+        await self.action.move_sol(
             self.target_wallet.keypair, self.user_wallet.keypair, money_to_return
         )
