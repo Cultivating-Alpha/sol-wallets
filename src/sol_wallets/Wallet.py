@@ -9,6 +9,7 @@ from sol_wallets.Account import Account
 from sol_wallets.Client import get_client
 from sol_wallets.Helius import get_helius
 from spl.token.constants import TOKEN_PROGRAM_ID
+import time
 
 from sol_wallets.SPL_Actions import SPL_Actions
 
@@ -72,6 +73,7 @@ class Wallet:
                 ),
             }
         self.save_token_accounts()
+        time.sleep(0.25)
 
     def has_token_account(self, mint):
         if mint in self.token_accounts.keys():

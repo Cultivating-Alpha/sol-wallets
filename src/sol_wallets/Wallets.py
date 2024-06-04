@@ -1,6 +1,8 @@
 import os
 from solders.keypair import Keypair
 
+from tqdm import tqdm
+
 from sol_wallets import Wallet
 
 
@@ -23,7 +25,8 @@ class Wallets:
         if os.path.exists(self.wallet_file):
             self.main_wallet = self.read_wallet(self.wallet_file)
             self.sub_wallets = []
-            for idx in range(self.number_of_sub_wallets):
+            print("Preparing Token Wallets")
+            for idx in tqdm(range(self.number_of_sub_wallets)):
                 self.sub_wallets.append(
                     self.read_wallet(f"wallets/{self.network}-sub_wallet-{idx}.bin")
                 )
