@@ -43,6 +43,7 @@ class Wallets:
             binary_file.write(bytes(wallet))
 
     def create_wallets(self):
+        print("Creating wallets...")
         main_wallet = Keypair()
         self.write_binary(f"wallets/{self.network}-main_wallet.bin", main_wallet)
 
@@ -50,6 +51,7 @@ class Wallets:
 
         for idx, sw in enumerate(sub_wallets):
             self.write_binary(f"wallets/{self.network}-sub_wallet-{idx}.bin", sw)
+        print("Finished creating wallets!")
 
     def reset_saved_data(self):
         self.main_wallet.prepare_token_accounts()

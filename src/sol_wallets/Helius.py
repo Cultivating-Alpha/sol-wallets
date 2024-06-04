@@ -52,7 +52,7 @@ class Helius:
             # print(json.dumps(result, indent=4))
             return result
         else:
-            print(f"Request failed with status code {response.status_code}")
+            print(f"Failed to get assets. Status code {response.status_code}")
             return []
 
     def get_asset(self, id):
@@ -74,7 +74,7 @@ class Helius:
             data = response.json()
             return data
         else:
-            print(f"Request failed with status code {response.status_code}")
+            print(f"Failed to get single asset. Status code {response.status_code}")
 
     def get_token_accounts(self, owner):
         headers = {"Content-Type": "application/json"}
@@ -104,7 +104,7 @@ class Helius:
             else:
                 return data["result"]["token_accounts"]
         else:
-            print(f"Request failed with status code {response.status_code}")
+            print(f"Failed to get token accounts. Status code {response.status_code}")
             return []
 
 

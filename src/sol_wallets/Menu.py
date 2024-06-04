@@ -135,13 +135,27 @@ class Menu:
         print(tabulate(table, headers=headers, tablefmt="grid"))
 
     def choose_token(self):
-        print("Please choose the token (mint-address) to be used")
         raw_token_accounts = self.wallets.main_wallet._raw_token_accounts
-        token_accounts = self.wallets.main_wallet.token_accounts
+        if len(raw_token_accounts) == 0:
+            print(
+                "The main bot's wallet doesn't contain any tokens. Please, send at least one."
+            )
+            print(
+                f"The pubkey of the main bot wallet is: {self.wallets.main_wallet.pubkey()}"
+            )
+            print(
+                f"The secret to use with phantom of the main bot wallet is: {self.wallets.main_wallet.private_key()}"
+            )
+            print()
+            user_input = input("Please Enter to continue...")
+            print(user_input)
+            return
 
         options = []
         for account in raw_token_accounts:
             options.append(f"{account.mint} --> {account.name} ({account.symbol})")
+
+        print("Please choose the token (mint-address) to be used")
         terminal_menu = TerminalMenu(
             options, shortcut_key_highlight_style=("fg_green",)
         )

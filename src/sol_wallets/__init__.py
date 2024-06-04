@@ -15,7 +15,7 @@ devnet_user_wallet = Wallet(network=network, secret=secret)
 
 
 async def run():
-    clear()
+    # clear()
     wallets = Wallets(network)
     menu = Menu(network, wallets, devnet_user_wallet)
     await menu.show_menu()
