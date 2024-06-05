@@ -1,4 +1,5 @@
 import os
+import time
 from termcolor import colored, cprint
 from simple_term_menu import TerminalMenu
 from sol_wallets.Actions import Actions
@@ -194,6 +195,7 @@ class Menu:
             await self.action.move_sol(
                 main_wallet.keypair, sub.keypair, sol_per_wallet * 1_000
             )
+            time.sleep(2)
             print()
 
     async def distribute_tokens(self):
@@ -215,6 +217,7 @@ class Menu:
             main_wallet.transfer_tokens(
                 mint, sub.get_token_account(mint).address, token_per_wallet
             )
+            time.sleep(2)
 
     async def return_tokens(self):
         if self.selected_token_account is None:
@@ -234,14 +237,11 @@ class Menu:
             sub.transfer_tokens(
                 mint, main_wallet.get_token_account(mint).address, token_balance
             )
+            time.sleep(2)
 
             print()
 
     async def return_coins(self):
-        if self.selected_token_account is None:
-            print("Please select a token")
-            return
-
         solana_price = get_solana_price()
         main_wallet = self.wallets.main_wallet
         for i in tqdm(range(len(self.wallets.sub_wallets))):
@@ -258,6 +258,7 @@ class Menu:
             await self.action.move_sol(
                 sub.keypair, main_wallet.keypair, balance * 1_000
             )
+            time.sleep(2)
             print()
 
     async def return_amount_to_user(self):
