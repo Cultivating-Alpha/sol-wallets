@@ -81,17 +81,17 @@ class Menu:
         elif result == "[c] Choose token to transfer":
             self.choose_token()
         elif result == "[d] Distribute Sol to sub wallets":
-            await self.distribute_sol(self.selected_token_account.mint)
+            await self.distribute_sol()
         elif result == "[ ] Distribute Token to sub wallets":
-            await self.distribute_tokens(self.selected_token_account.mint)
+            await self.distribute_tokens()
         elif result == "[t] Transfer all SOL back to main wallet":
-            await self.return_coins(self.selected_token_account.mint)
+            await self.return_coins()
         elif result == "[ ] Transfer all Tokens back to main wallet":
-            await self.return_tokens(self.selected_token_account.mint)
+            await self.return_tokens()
         elif result == "[r] Return money to main user":
-            await self.return_amount_to_user(self.selected_token_account.mint)
+            await self.return_amount_to_user()
         elif result == "[f] Fund main bot wallet from user wallet":
-            await self.fund_main_wallet(self.selected_token_account.mint, 5)
+            await self.fund_main_wallet(5)
         elif result == "[o] Reset saved data":
             self.wallets.reset_saved_data()
 
@@ -177,7 +177,7 @@ class Menu:
         headers = ["Wallet", "Balance (SOL)", "Private Key"]
         print(tabulate(table, headers=headers, tablefmt="grid"))
 
-    async def distribute_sol(self, mint):
+    async def distribute_sol(self):
         main_wallet = self.wallets.main_wallet
         balance = self.wallets.main_wallet.get_balance()
         print(f"The main bot has {balance} SOL")
@@ -194,14 +194,15 @@ class Menu:
             )
             print()
 
-    async def distribute_tokens(self, mint):
+    async def distribute_tokens(self):
+        if self.selected_token_account is None:
+            print("Please select a token")
+            return
+
+        mint = self.selected_token_account.mint
         main_wallet = self.wallets.main_wallet
-        token_balance = self.wallets.main_wallet.get_token_balance(
-            self.selected_token_account.mint
-        )
-        print(
-            f"The main bot has {token_balance} {self.selected_token_account.mint} balance"
-        )
+        token_balance = self.wallets.main_wallet.get_token_balance(mint)
+        print(f"The main bot has {token_balance} {mint} balance")
 
         number_of_sub_wallets = len(self.wallets.sub_wallets)
         token_per_wallet = token_balance / number_of_sub_wallets
@@ -213,7 +214,12 @@ class Menu:
                 mint, sub.get_token_account(mint).address, token_per_wallet
             )
 
-    async def return_tokens(self, mint):
+    async def return_tokens(self):
+        if self.selected_token_account is None:
+            print("Please select a token")
+            return
+
+        mint = self.selected_token_account.mint
         solana_price = get_solana_price()
         main_wallet = self.wallets.main_wallet
         for i in tqdm(range(len(self.wallets.sub_wallets))):
@@ -221,17 +227,19 @@ class Menu:
             sub = self.wallets.sub_wallets[i]
             print(sub.pubkey())
 
-            token_balance = sub.get_token_balance(self.selected_token_account.mint)
-            print(
-                f"The sub wallet  has {token_balance} {self.selected_token_account.mint} balance"
-            )
+            token_balance = sub.get_token_balance(mint)
+            print(f"The sub wallet  has {token_balance} {mint} balance")
             sub.transfer_tokens(
                 mint, main_wallet.get_token_account(mint).address, token_balance
             )
 
             print()
 
-    async def return_coins(self, mint):
+    async def return_coins(self):
+        if self.selected_token_account is None:
+            print("Please select a token")
+            return
+
         solana_price = get_solana_price()
         main_wallet = self.wallets.main_wallet
         for i in tqdm(range(len(self.wallets.sub_wallets))):
@@ -250,7 +258,12 @@ class Menu:
             )
             print()
 
-    async def return_amount_to_user(self, mint):
+    async def return_amount_to_user(self):
+        if self.selected_token_account is None:
+            print("Please select a token")
+            return
+
+        mint = self.selected_token_account.mint
         flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
         await flow.return_amount_to_user()
 
@@ -263,7 +276,12 @@ class Menu:
                 mint, self.main_user_wallet.get_token_account(mint).address, amount
             )
 
-    async def fund_main_wallet(self, mint, amount):
+    async def fund_main_wallet(self, amount):
+        if self.selected_token_account is None:
+            print("Please select a token")
+            return
+
+        mint = self.selected_token_account.mint
         flow = Flow(self.network, self.main_user_wallet, self.wallets.main_wallet)
         await flow.refill_target(0.5)
 
