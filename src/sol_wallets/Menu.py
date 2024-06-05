@@ -34,8 +34,6 @@ class Menu:
         pass
 
     async def show_menu(self):
-        if self.selected_token_account is None:
-            self.choose_token()
         clear()
         cprint("MAIN MENU", "red", attrs=["bold"])
         if self.selected_token_account is not None:
@@ -83,10 +81,14 @@ class Menu:
         elif result == "[d] Distribute Sol to sub wallets":
             await self.distribute_sol()
         elif result == "[ ] Distribute Token to sub wallets":
+            if self.selected_token_account is None:
+                self.choose_token()
             await self.distribute_tokens()
         elif result == "[t] Transfer all SOL back to main wallet":
             await self.return_coins()
         elif result == "[ ] Transfer all Tokens back to main wallet":
+            if self.selected_token_account is None:
+                self.choose_token()
             await self.return_tokens()
         elif result == "[r] Return money to main user":
             await self.return_amount_to_user()
