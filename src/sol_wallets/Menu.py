@@ -252,6 +252,8 @@ class Menu:
             # balance_in_usd = balance * get_solana_price()
             # if balance_in_usd < 1:
             #     continue
+            if balance < 0.001:
+                continue
             balance = balance - 0.001
             print(f"The sub wallet  has {balance} SOL")
 
