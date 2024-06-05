@@ -225,7 +225,7 @@ class Menu:
             return
 
         mint = self.selected_token_account.mint
-        solana_price = get_solana_price()
+        # solana_price = get_solana_price()
         main_wallet = self.wallets.main_wallet
         for i in tqdm(range(len(self.wallets.sub_wallets))):
             print("--------------------------")
@@ -242,16 +242,16 @@ class Menu:
             print()
 
     async def return_coins(self):
-        solana_price = get_solana_price()
+        # solana_price = get_solana_price()
         main_wallet = self.wallets.main_wallet
         for i in tqdm(range(len(self.wallets.sub_wallets))):
             print("--------------------------")
             sub = self.wallets.sub_wallets[i]
 
             balance = sub.get_balance()
-            balance_in_usd = balance * get_solana_price()
-            if balance_in_usd < 1:
-                continue
+            # balance_in_usd = balance * get_solana_price()
+            # if balance_in_usd < 1:
+            #     continue
             balance = balance - 0.001
             print(f"The sub wallet  has {balance} SOL")
 
