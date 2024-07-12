@@ -47,6 +47,7 @@ class Menu:
         options = [
             "[i] Inspect Bot's main Wallet",
             "[ ] Inspect Bot's sub Wallets",
+            "[u] Inspect USER wallets",
             # "[ ] Inspect USER Wallets",
             "",
             "[c] Choose token to transfer",
@@ -75,6 +76,9 @@ class Menu:
         if result == "[i] Inspect Bot's main Wallet":
             self.inspect_main_wallet()
             self.view_account_balances()
+        if result == "[u] Inspect USER wallets":
+            self.inspect_main_wallet(self.main_user_wallet)
+            self.view_account_balances(self.main_user_wallet)
         elif result == "[ ] Inspect Bot's sub Wallets":
             self.inspect_sub_wallets()
         elif result == "[c] Choose token to transfer":
@@ -108,27 +112,29 @@ class Menu:
 
         await self.show_menu()
 
-    def inspect_main_wallet(self):
+    def inspect_main_wallet(self, wallet=None):
+        if wallet is None:
+            wallet = self.wallets.main_wallet
         print("Inspecting the main bot's balance...\n")
-        balance = self.wallets.main_wallet.get_balance()
+        balance = wallet.get_balance()
 
         table = [
             [
-                self.wallets.main_wallet.pubkey(),
+                wallet.pubkey(),
                 balance,
-                self.wallets.main_wallet.private_key(),
+                wallet.private_key(),
             ],
         ]
 
         headers = ["Wallet", "Balance (SOL)", "Private Key"]
         print(tabulate(table, headers=headers, tablefmt="grid"))
 
-    def view_account_balances(self):
+    def view_account_balances(self, wallet=None):
+        if wallet is None:
+            wallet = self.wallets.main_wallet
         print()
-        print(
-            f"Fetching token balances for owner: {self.wallets.main_wallet.pubkey()}..."
-        )
-        self.helius.get_accounts(self.wallets.main_wallet.keypair)
+        print(f"Fetching token balances for owner: {wallet.pubkey()}...")
+        self.helius.get_accounts(wallet.keypair)
 
         headers = ["Mint", "Balance", "Name"]
         table = []

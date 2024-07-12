@@ -1,28 +1,30 @@
+from tabulate import tabulate
 from sol_wallets.Wallet import Wallet
 from sol_wallets.Wallets import Wallets
 from sol_wallets.Menu import clear, Menu
 from sol_wallets.Env import get_key
-
-sample_wallets = {
-    "main": "BuouBWx5AVadDXzKFwBxaAxUnT3K5H6rRQmtAeCYGyLM",
-    "devnet": "51iAWLX4niXKE2LFUCKDH1CJSrEqD1z5owcPsZpCUfGq",
-}
-
+import asyncio
 
 secret = get_key("MAIN_WALLET")
 network = get_key("NETWORK")
-devnet_user_wallet = Wallet(network=network, secret=secret)
+user_wallet = Wallet(network=network, secret=secret)
+
+
+def import_custom_wallet_as_main(wallet, network):
+    file_name = f"wallets/{network}-main_wallet.bin"
+    print(wallet.keypair)
+    with open(file_name, "wb") as binary_file:
+        binary_file.write(bytes(wallet.keypair))
+
+
+# import_custom_wallet_as_main(user_wallet, network)
 
 
 async def run():
-    # clear()
     wallets = Wallets(network)
-    menu = Menu(network, wallets, devnet_user_wallet)
+    menu = Menu(network, wallets, user_wallet)
     await menu.show_menu()
     return
-
-
-import asyncio
 
 
 def main():
